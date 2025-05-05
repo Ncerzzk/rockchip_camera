@@ -24,7 +24,7 @@ do {\
     }\
 }while(0)
 
-camera::camera(char *dev_name){
+camera::camera(char const *dev_name){
     fd = open(dev_name,O_RDWR);
     if(fd < 0){
         perror("Failed to open device, OPEN");
@@ -92,6 +92,8 @@ camera::camera(char *dev_name){
 
     dma_fd = expbuf.fd;
     frame_length = plane.length;
+
+    enqueue_frame();
 };
 
 camera::~camera(){
@@ -108,22 +110,31 @@ camera::~camera(){
     close(fd);
 }
 
-void camera::dequeue_frame(){
-    v4l2_buffer tmp = {0};
-    tmp.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
-    tmp.memory = V4L2_MEMORY_MMAP;
-    tmp.index = 0;
-    tmp.m.planes = &plane;
-    tmp.length = 1;
+int camera::dequeue_frame(){
+    static v4l2_buffer tmp = {
+        index: 0,
+        type:V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE,
+        memory: V4L2_MEMORY_MMAP,
+        m:{
+            planes: &plane
+        },
+        length:1
+    };
     cam_ioctl(fd, VIDIOC_DQBUF, &tmp);
+    return tmp.index;
 }
 
-void camera::enqueue_frame(){
-    v4l2_buffer tmp = {0};
-    tmp.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
-    tmp.memory = V4L2_MEMORY_MMAP;
-    tmp.index = 0;
-    tmp.m.planes = &plane;
-    tmp.length = 1;
+void camera::enqueue_frame(int index){
+    static v4l2_buffer tmp = {
+        index: 0,
+        type:V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE,
+        memory: V4L2_MEMORY_MMAP,
+        m:{
+            planes: &plane
+        },
+        length:1
+    };
+
+    tmp.index = index;
     cam_ioctl(fd, VIDIOC_QBUF, &tmp); 
 }

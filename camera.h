@@ -10,15 +10,15 @@
 
 class camera{
     public:
-        camera(char *dev_name);
+        camera(char const *dev_name);
         ~camera();
         int fd;
         int dma_fd;
         
         uint64_t frame_length;
 
-        void enqueue_frame();
-        void dequeue_frame();
+        void enqueue_frame(int index = 0);
+        int dequeue_frame();
 
         uint8_t *buffer;
     

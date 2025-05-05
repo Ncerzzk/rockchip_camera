@@ -24,12 +24,13 @@ using namespace std;
 
 int main() {
     // 1.  Open the device
+    encoder_test_fp enc;
+    enc.run();
+/******************************** end looping here **********************/
+    return 0;
+}
 
-    camera cam("/dev/video0");
-    encoder_init(cam.fd, cam.frame_length);
-
-    cam.enqueue_frame();
-    cam.dequeue_frame();
+/*
 
     // Frames get written after dequeuing the buffer
 
@@ -76,8 +77,4 @@ int main() {
 
     // Close the file
     outFile.close();
-
-
-/******************************** end looping here **********************/
-    return 0;
-}
+*/
