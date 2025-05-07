@@ -26,7 +26,8 @@ class encoder{
         void run();
 
         MppBufferGroup buf_grp;
-        MppBuffer mpp_buffer, pkt_buf,md_info;
+        MppBuffer cam_buffers[10];
+        MppBuffer pkt_buf,md_info;
         MppCtx ctx;
         MppApi *mpi;
 

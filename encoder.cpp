@@ -4,6 +4,8 @@
 #include "signal.h"
 
 
+#include <chrono>
+
 static RK_S32 qbias_arr_hevc[18] = {
     3, 6, 13, 171, 171, 171, 171,
     3, 6, 13, 171, 171, 220, 171, 85, 85, 85, 85
@@ -431,16 +433,17 @@ static MPP_RET mpp_enc_cfg_setup(MppCtx ctx,MppApi *mpi,MppEncCfg cfg)
 encoder::encoder():cam("/dev/video0")
 {
 
-    MppBufferInfo info;
-
     mpp_set_log_level(MPP_LOG_DEBUG);
     
-    memset(&info, 0, sizeof(MppBufferInfo));
-    info.type = MPP_BUFFER_TYPE_EXT_DMA;
-    info.fd = cam.dma_fd;
-    info.size = cam.frame_length & 0x07ffffff;
-    info.index = (cam.frame_length & 0xf8000000) >> 27;
-    mpp_buffer_import(&mpp_buffer, &info);
+    for(int i=0; i< cam.buffer_num; ++i){
+        MppBufferInfo info;
+        memset(&info, 0, sizeof(MppBufferInfo));
+        info.type = MPP_BUFFER_TYPE_EXT_DMA;
+        info.fd = cam.dma_fds[i];
+        info.size = cam.frame_length & 0x07ffffff;
+        info.index = (cam.frame_length & 0xf8000000) >> 27;
+        mpp_buffer_import(&cam_buffers[i], &info);
+    }
 
     int ret;
     ret = mpp_buffer_group_get_internal(&buf_grp, MPP_BUFFER_TYPE_DRM | MPP_BUFFER_FLAGS_CACHABLE);
@@ -448,12 +451,6 @@ encoder::encoder():cam("/dev/video0")
     {
         mpp_err_f("failed to get mpp buffer group ret %d\n", ret);
     }
-
-    // ret = mpp_buffer_get(buf_grp, &p->frm_buf, frame_size + p->header_size);
-    // if (ret) {
-    //     mpp_err_f("failed to get buffer for input frame ret %d\n", ret);
-    //     goto MPP_TEST_OUT;
-    // }
 
     ret = mpp_buffer_get(buf_grp, &pkt_buf, get_framesize(MPP_OUT_WIDTH,MPP_OUT_HEIGHT, MPP_FMT));
     if (ret)
@@ -508,7 +505,7 @@ volatile sig_atomic_t running_flag = 1;
 void signal_handler(int signal) {
     printf("recv signal:%d\n",signal);
     if (signal == SIGINT) {
-        running_flag = 0; // 设置退出标志
+        running_flag = 0;
     }
 }
 
@@ -540,15 +537,9 @@ void encoder::run()
         size_t len  = mpp_packet_get_length(packet);
 
         packet_handle_callback((uint8_t *)ptr,len);
-        // if (p->fp_output)
-        //     fwrite(ptr, 1, len, p->fp_output);
     }
 
     mpp_packet_deinit(&packet);
-
-    // sse_unit_in_pixel = p->type == MPP_VIDEO_CodingAVC ? 16 : 8;
-    // psnr_const = (16 + log2(MPP_ALIGN(p->width, sse_unit_in_pixel) *
-    //                         MPP_ALIGN(p->height, sse_unit_in_pixel)));
 
     while (running_flag) {
         MppMeta meta = NULL;
@@ -556,9 +547,11 @@ void encoder::run()
         int cam_frm_idx = -1;
         bool end_of_frame = true;
 
+        // auto start = std::chrono::high_resolution_clock::now();
+
         cam_frm_idx = cam.dequeue_frame();
+        cam.enqueue_frame(cam_frm_idx);
         mpp_assert(cam_frm_idx >= 0);
-        mpp_assert(mpp_buffer);
 
         ret = mpp_frame_init(&frame);
         if (ret) {
@@ -573,7 +566,7 @@ void encoder::run()
         mpp_frame_set_fmt(frame, MPP_FMT);
         mpp_frame_set_eos(frame, 0);
 
-        mpp_frame_set_buffer(frame, mpp_buffer);
+        mpp_frame_set_buffer(frame, cam_buffers[cam_frm_idx]);
 
         meta = mpp_frame_get_meta(frame);
         mpp_packet_init_with_buffer(&packet, pkt_buf);
@@ -604,8 +597,6 @@ void encoder::run()
             pkt_eos = mpp_packet_get_eos(packet);
 
             packet_handle_callback((uint8_t *)ptr,len);
-            // if (p->fp_output)
-            //     fwrite(ptr, 1, len, p->fp_output);
 
             /* for low delay partition encoding */
             if (mpp_packet_is_partition(packet)) {
@@ -616,7 +607,12 @@ void encoder::run()
 
         } while (!end_of_frame);
 
-        cam.enqueue_frame();
+        // auto end = std::chrono::high_resolution_clock::now();
+
+        // auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+
+        // printf("%ld   %d\n",duration.count(),cam_frm_idx);
+        
 
     }
 

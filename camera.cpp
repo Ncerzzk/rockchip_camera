@@ -24,7 +24,7 @@ do {\
     }\
 }while(0)
 
-camera::camera(char const *dev_name){
+camera::camera(char const *dev_name, int buffer_num):buffer_num(buffer_num){
     fd = open(dev_name,O_RDWR);
     if(fd < 0){
         perror("Failed to open device, OPEN");
@@ -52,7 +52,7 @@ camera::camera(char const *dev_name){
 
     // 4. Request Buffers from the device
     v4l2_requestbuffers requestBuffer = {0};
-    requestBuffer.count = 1; // one request buffer
+    requestBuffer.count = buffer_num;
     requestBuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE; // request a buffer wich we an use for capturing frames
     requestBuffer.memory = V4L2_MEMORY_MMAP;
 
@@ -60,40 +60,43 @@ camera::camera(char const *dev_name){
 
     // 5. Quety the buffer to get raw data ie. ask for the you requested buffer
     // and allocate memory for it
+    for(int i=0;i<buffer_num; ++i){
+        v4l2_plane plane = {0};
+        v4l2_buffer queryBuffer = {0};
+        queryBuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+        queryBuffer.memory = V4L2_MEMORY_MMAP;
+        queryBuffer.index = 0;
+        queryBuffer.m.planes = &plane;
+        queryBuffer.length = 1;
     
-    v4l2_buffer queryBuffer = {0};
-    queryBuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
-    queryBuffer.memory = V4L2_MEMORY_MMAP;
-    queryBuffer.index = 0;
-    queryBuffer.m.planes = &plane;
-    queryBuffer.length = 1;
+        cam_ioctl(fd, VIDIOC_QUERYBUF, &queryBuffer);
+    
+        // use a pointer to point to the newly created buffer
+        // mmap() will map the memory address of the device to
+        // an address in memory
+        buffers[i] = (uint8_t *)mmap(NULL, plane.length, PROT_READ | PROT_WRITE, MAP_SHARED,
+                            fd, plane.data_offset);
+        memset(buffers[i], 0, plane.length);
 
-    cam_ioctl(fd, VIDIOC_QUERYBUF, &queryBuffer);
+        struct v4l2_exportbuffer expbuf={0};
+        memset(&expbuf, 0, sizeof(expbuf));
+        expbuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+        expbuf.index = i;
+        expbuf.plane = 0;
+        expbuf.flags = O_CLOEXEC;
+        cam_ioctl(fd, VIDIOC_EXPBUF, &expbuf);
 
-    // use a pointer to point to the newly created buffer
-    // mmap() will map the memory address of the device to
-    // an address in memory
-    buffer = (uint8_t *)mmap(NULL, plane.length, PROT_READ | PROT_WRITE, MAP_SHARED,
-                        fd, plane.data_offset);
-    memset(buffer, 0, plane.length);
-
-
-    struct v4l2_exportbuffer expbuf={0};
-    memset(&expbuf, 0, sizeof(expbuf));
-    expbuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
-    expbuf.index = 0;
-    expbuf.plane = 0;
-    expbuf.flags = O_CLOEXEC;
-    cam_ioctl(fd, VIDIOC_EXPBUF, &expbuf);
-
+        dma_fds[i] = expbuf.fd;
+        frame_length = plane.length;
+    }
+    
     // Activate streaming
     int type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
     cam_ioctl(fd, VIDIOC_STREAMON, &type);
-
-    dma_fd = expbuf.fd;
-    frame_length = plane.length;
-
-    enqueue_frame();
+ 
+    for(int i=0;i<buffer_num;++i){
+        enqueue_frame(i);
+    }
 };
 
 camera::~camera(){
@@ -111,6 +114,7 @@ camera::~camera(){
 }
 
 int camera::dequeue_frame(){
+    static v4l2_plane plane = {0};
     static v4l2_buffer tmp = {
         index: 0,
         type:V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE,
@@ -125,6 +129,7 @@ int camera::dequeue_frame(){
 }
 
 void camera::enqueue_frame(int index){
+    static v4l2_plane plane = {0};
     static v4l2_buffer tmp = {
         index: 0,
         type:V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE,

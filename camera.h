@@ -10,20 +10,21 @@
 
 class camera{
     public:
-        camera(char const *dev_name);
+        camera(char const *dev_name, int buffer_num = 3);
         ~camera();
         int fd;
-        int dma_fd;
+        int dma_fds[10];
         
         uint64_t frame_length;
 
         void enqueue_frame(int index = 0);
         int dequeue_frame();
 
-        uint8_t *buffer;
+        uint8_t *buffers[10];
+        int buffer_num;
     
     private:
-        v4l2_plane plane = {0};
+        //v4l2_plane plane = {0};
 
 };
 
