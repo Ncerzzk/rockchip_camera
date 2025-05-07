@@ -3,3 +3,4 @@ rk_cam
 *.jpeg
 .vscode
 *.mp4
+build
