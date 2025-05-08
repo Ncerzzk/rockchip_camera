@@ -3,74 +3,89 @@
 #include "memory.h"
 #include "signal.h"
 
-
 #include <chrono>
 
 static RK_S32 qbias_arr_hevc[18] = {
     3, 6, 13, 171, 171, 171, 171,
-    3, 6, 13, 171, 171, 220, 171, 85, 85, 85, 85
-};
+    3, 6, 13, 171, 171, 220, 171, 85, 85, 85, 85};
 
 static RK_S32 qbias_arr_avc[18] = {
     3, 6, 13, 683, 683, 683, 683,
-    3, 6, 13, 683, 683, 683, 683, 341, 341, 341, 341
-};
+    3, 6, 13, 683, 683, 683, 683, 341, 341, 341, 341};
 
 static RK_S32 aq_rnge_arr[10] = {
     5, 5, 10, 12, 12,
-    5, 5, 10, 12, 12
-};
+    5, 5, 10, 12, 12};
 
 static RK_S32 aq_thd_smart[16] = {
-    1,  3,  3,  3,  3,  3,  5,  5,
-    8,  8,  8, 15, 15, 20, 25, 28
-};
+    1, 3, 3, 3, 3, 3, 5, 5,
+    8, 8, 8, 15, 15, 20, 25, 28};
 
 static RK_S32 aq_step_smart[16] = {
     -8, -7, -6, -5, -4, -3, -2, -1,
-    0,  1,  2,  3,  4,  6,  8, 10
-};
+    0, 1, 2, 3, 4, 6, 8, 10};
 
 static RK_S32 aq_thd[16] = {
-    0,  0,  0,  0,
-    3,  3,  5,  5,
-    8,  8,  8,  15,
-    15, 20, 25, 25
-};
+    0, 0, 0, 0,
+    3, 3, 5, 5,
+    8, 8, 8, 15,
+    15, 20, 25, 25};
 
 static RK_S32 aq_step_i_ipc[16] = {
-    -8, -7, -6, -5,
-    -4, -3, -2, -1,
-    0,  1,  2,  3,
-    5,  7,  7,  8,
+    -8,
+    -7,
+    -6,
+    -5,
+    -4,
+    -3,
+    -2,
+    -1,
+    0,
+    1,
+    2,
+    3,
+    5,
+    7,
+    7,
+    8,
 };
 
 static RK_S32 aq_step_p_ipc[16] = {
-    -8, -7, -6, -5,
-    -4, -2, -1, -1,
-    0,  2,  3,  4,
-    6,  8,  9,  10,
+    -8,
+    -7,
+    -6,
+    -5,
+    -4,
+    -2,
+    -1,
+    -1,
+    0,
+    2,
+    3,
+    4,
+    6,
+    8,
+    9,
+    10,
 };
 
-
-
-static uint32_t get_mdinfo_size(int width, int height,MppCodingType type)
+static uint32_t get_mdinfo_size(int width, int height, MppCodingType type)
 {
     RockchipSocType soc_type = mpp_get_soc_type();
     uint32_t md_size;
     uint32_t w = width, h = height;
 
-    if (soc_type == ROCKCHIP_SOC_RK3588) {
+    if (soc_type == ROCKCHIP_SOC_RK3588)
+    {
         md_size = (MPP_ALIGN(w, 64) >> 6) * (MPP_ALIGN(h, 64) >> 6) * 32;
-    } else {
-        md_size = (MPP_VIDEO_CodingHEVC == type) ?
-                  (MPP_ALIGN(w, 32) >> 5) * (MPP_ALIGN(h, 32) >> 5) * 16 :
-                  (MPP_ALIGN(w, 64) >> 6) * (MPP_ALIGN(h, 16) >> 4) * 16;
+    }
+    else
+    {
+        md_size = (MPP_VIDEO_CodingHEVC == type) ? (MPP_ALIGN(w, 32) >> 5) * (MPP_ALIGN(h, 32) >> 5) * 16 : (MPP_ALIGN(w, 64) >> 6) * (MPP_ALIGN(h, 16) >> 4) * 16;
     }
 
     return md_size;
 }
-
 
 static int get_framesize(int width, int height, MppFrameFormat fmt)
 {
@@ -127,7 +142,7 @@ static int get_framesize(int width, int height, MppFrameFormat fmt)
     return frame_size;
 }
 
-static MPP_RET mpp_enc_cfg_setup(MppCtx ctx,MppApi *mpi,MppEncCfg cfg)
+static MPP_RET mpp_enc_cfg_setup(MppCtx ctx, MppApi *mpi, MppEncCfg cfg)
 {
     MPP_RET ret;
     RK_U32 rotation;
@@ -135,7 +150,7 @@ static MPP_RET mpp_enc_cfg_setup(MppCtx ctx,MppApi *mpi,MppEncCfg cfg)
     RK_U32 flip;
     MppEncRefCfg ref = NULL;
 
-    int rc_mode = MPP_ENC_RC_MODE_VBR; 
+    int rc_mode = MPP_ENC_RC_MODE_VBR;
     MppCodingType type = MPP_ENCODE_TYPE;
 
     uint32_t height = MPP_OUT_HEIGHT;
@@ -144,10 +159,9 @@ static MPP_RET mpp_enc_cfg_setup(MppCtx ctx,MppApi *mpi,MppEncCfg cfg)
     int fps_out_num = 30;
     int fps_out_den = 1;
 
-    int scene_mode = 1;  // ipc scene_mode
+    int scene_mode = 1; // ipc scene_mode
 
-
-    uint64_t bps = width * height / 8 * (fps_out_num/ fps_out_den);
+    uint64_t bps = width * height / 8 * (fps_out_num / fps_out_den);
 
     /* setup preprocess parameters */
     mpp_enc_cfg_set_s32(cfg, "base:low_delay", 1);
@@ -181,38 +195,51 @@ static MPP_RET mpp_enc_cfg_setup(MppCtx ctx,MppApi *mpi,MppEncCfg cfg)
 
     /* drop frame or not when bitrate overflow */
     mpp_enc_cfg_set_u32(cfg, "rc:drop_mode", MPP_ENC_RC_DROP_FRM_DISABLED);
-    mpp_enc_cfg_set_u32(cfg, "rc:drop_thd", 20);        /* 20% of max bps */
-    mpp_enc_cfg_set_u32(cfg, "rc:drop_gap", 1);         /* Do not continuous drop frame */
+    mpp_enc_cfg_set_u32(cfg, "rc:drop_thd", 20); /* 20% of max bps */
+    mpp_enc_cfg_set_u32(cfg, "rc:drop_gap", 1);  /* Do not continuous drop frame */
 
     /* setup bitrate for different rc_mode */
     mpp_enc_cfg_set_s32(cfg, "rc:bps_target", bps);
-    switch (rc_mode) {
-    case MPP_ENC_RC_MODE_FIXQP : {
+    switch (rc_mode)
+    {
+    case MPP_ENC_RC_MODE_FIXQP:
+    {
         /* do not setup bitrate on FIXQP mode */
-    } break;
-    case MPP_ENC_RC_MODE_CBR : {
+    }
+    break;
+    case MPP_ENC_RC_MODE_CBR:
+    {
         /* CBR mode has narrow bound */
-        mpp_enc_cfg_set_s32(cfg, "rc:bps_max",  bps * 17 / 16);
-        mpp_enc_cfg_set_s32(cfg, "rc:bps_min",  bps * 15 / 16);
-    } break;
-    case MPP_ENC_RC_MODE_VBR :
-    case MPP_ENC_RC_MODE_AVBR : {
+        mpp_enc_cfg_set_s32(cfg, "rc:bps_max", bps * 17 / 16);
+        mpp_enc_cfg_set_s32(cfg, "rc:bps_min", bps * 15 / 16);
+    }
+    break;
+    case MPP_ENC_RC_MODE_VBR:
+    case MPP_ENC_RC_MODE_AVBR:
+    {
         /* VBR mode has wide bound */
-        mpp_enc_cfg_set_s32(cfg, "rc:bps_max",  bps * 17 / 16);
-        mpp_enc_cfg_set_s32(cfg, "rc:bps_min",  bps * 1 / 16);
-    } break;
-    default : {
+        mpp_enc_cfg_set_s32(cfg, "rc:bps_max", bps * 17 / 16);
+        mpp_enc_cfg_set_s32(cfg, "rc:bps_min", bps * 1 / 16);
+    }
+    break;
+    default:
+    {
         /* default use CBR mode */
-        mpp_enc_cfg_set_s32(cfg, "rc:bps_max",  bps * 17 / 16);
-        mpp_enc_cfg_set_s32(cfg, "rc:bps_min",  bps * 15 / 16);
-    } break;
+        mpp_enc_cfg_set_s32(cfg, "rc:bps_max", bps * 17 / 16);
+        mpp_enc_cfg_set_s32(cfg, "rc:bps_min", bps * 15 / 16);
+    }
+    break;
     }
 
     /* setup qp for different codec and rc_mode */
-    switch (type) {
-    case MPP_VIDEO_CodingHEVC : {
-        switch (rc_mode) {
-        case MPP_ENC_RC_MODE_FIXQP : {
+    switch (type)
+    {
+    case MPP_VIDEO_CodingHEVC:
+    {
+        switch (rc_mode)
+        {
+        case MPP_ENC_RC_MODE_FIXQP:
+        {
             RK_S32 fix_qp = 26;
 
             mpp_enc_cfg_set_s32(cfg, "rc:qp_init", fix_qp);
@@ -225,50 +252,64 @@ static MPP_RET mpp_enc_cfg_setup(MppCtx ctx,MppApi *mpi,MppEncCfg cfg)
             mpp_enc_cfg_set_s32(cfg, "rc:fqp_max_i", fix_qp);
             mpp_enc_cfg_set_s32(cfg, "rc:fqp_min_p", fix_qp);
             mpp_enc_cfg_set_s32(cfg, "rc:fqp_max_p", fix_qp);
-        } break;
-        case MPP_ENC_RC_MODE_CBR :
-        case MPP_ENC_RC_MODE_VBR :
-        case MPP_ENC_RC_MODE_AVBR :
-        case MPP_ENC_RC_MODE_SMTRC : {
-            mpp_enc_cfg_set_s32(cfg, "rc:qp_init",  -1);
-            mpp_enc_cfg_set_s32(cfg, "rc:qp_max",  51);
-            mpp_enc_cfg_set_s32(cfg, "rc:qp_min",  10);
-            mpp_enc_cfg_set_s32(cfg, "rc:qp_max_i",  51);
-            mpp_enc_cfg_set_s32(cfg, "rc:qp_min_i",  10);
+        }
+        break;
+        case MPP_ENC_RC_MODE_CBR:
+        case MPP_ENC_RC_MODE_VBR:
+        case MPP_ENC_RC_MODE_AVBR:
+        case MPP_ENC_RC_MODE_SMTRC:
+        {
+            mpp_enc_cfg_set_s32(cfg, "rc:qp_init", -1);
+            mpp_enc_cfg_set_s32(cfg, "rc:qp_max", 51);
+            mpp_enc_cfg_set_s32(cfg, "rc:qp_min", 10);
+            mpp_enc_cfg_set_s32(cfg, "rc:qp_max_i", 51);
+            mpp_enc_cfg_set_s32(cfg, "rc:qp_min_i", 10);
             mpp_enc_cfg_set_s32(cfg, "rc:qp_ip", 2);
             mpp_enc_cfg_set_s32(cfg, "rc:fqp_min_i", 10);
-            mpp_enc_cfg_set_s32(cfg, "rc:fqp_max_i",  45);
+            mpp_enc_cfg_set_s32(cfg, "rc:fqp_max_i", 45);
             mpp_enc_cfg_set_s32(cfg, "rc:fqp_min_p", 10);
-            mpp_enc_cfg_set_s32(cfg, "rc:fqp_max_p",  45);
-        } break;
-        default : {
-            mpp_err_f("unsupport encoder rc mode %d\n", rc_mode);
-        } break;
+            mpp_enc_cfg_set_s32(cfg, "rc:fqp_max_p", 45);
         }
-    } break;
-    case MPP_VIDEO_CodingVP8 : {
+        break;
+        default:
+        {
+            mpp_err_f("unsupport encoder rc mode %d\n", rc_mode);
+        }
+        break;
+        }
+    }
+    break;
+    case MPP_VIDEO_CodingVP8:
+    {
         /* vp8 only setup base qp range */
-        mpp_enc_cfg_set_s32(cfg, "rc:qp_init",  40);
-        mpp_enc_cfg_set_s32(cfg, "rc:qp_max",   127);
-        mpp_enc_cfg_set_s32(cfg, "rc:qp_min",   0);
-        mpp_enc_cfg_set_s32(cfg, "rc:qp_max_i",  127);
-        mpp_enc_cfg_set_s32(cfg, "rc:qp_min_i",  0);
+        mpp_enc_cfg_set_s32(cfg, "rc:qp_init", 40);
+        mpp_enc_cfg_set_s32(cfg, "rc:qp_max", 127);
+        mpp_enc_cfg_set_s32(cfg, "rc:qp_min", 0);
+        mpp_enc_cfg_set_s32(cfg, "rc:qp_max_i", 127);
+        mpp_enc_cfg_set_s32(cfg, "rc:qp_min_i", 0);
         mpp_enc_cfg_set_s32(cfg, "rc:qp_ip", 6);
-    } break;
-    case MPP_VIDEO_CodingMJPEG : {
+    }
+    break;
+    case MPP_VIDEO_CodingMJPEG:
+    {
         /* jpeg use special codec config to control qtable */
-        mpp_enc_cfg_set_s32(cfg, "jpeg:q_factor",  80);
-        mpp_enc_cfg_set_s32(cfg, "jpeg:qf_max",  99);
-        mpp_enc_cfg_set_s32(cfg, "jpeg:qf_min",  1);
-    } break;
-    default : {
-    } break;
+        mpp_enc_cfg_set_s32(cfg, "jpeg:q_factor", 80);
+        mpp_enc_cfg_set_s32(cfg, "jpeg:qf_max", 99);
+        mpp_enc_cfg_set_s32(cfg, "jpeg:qf_min", 1);
+    }
+    break;
+    default:
+    {
+    }
+    break;
     }
 
     /* setup codec  */
     mpp_enc_cfg_set_s32(cfg, "codec:type", type);
-    switch (type) {
-    case MPP_VIDEO_CodingAVC : {
+    switch (type)
+    {
+    case MPP_VIDEO_CodingAVC:
+    {
         RK_U32 constraint_set;
 
         /*
@@ -294,22 +335,28 @@ static MPP_RET mpp_enc_cfg_setup(MppCtx ctx,MppApi *mpi,MppEncCfg cfg)
         mpp_env_get_u32("constraint_set", &constraint_set, 0);
         if (constraint_set & 0x3f0000)
             mpp_enc_cfg_set_s32(cfg, "h264:constraint_set", constraint_set);
-    } break;
-    case MPP_VIDEO_CodingHEVC : {
+    }
+    break;
+    case MPP_VIDEO_CodingHEVC:
+    {
         mpp_enc_cfg_set_s32(cfg, "h265:diff_cu_qp_delta_depth", 0);
-    } break;
-    case MPP_VIDEO_CodingMJPEG :
-    case MPP_VIDEO_CodingVP8 : {
-    } break;
-    default : {
+    }
+    break;
+    case MPP_VIDEO_CodingMJPEG:
+    case MPP_VIDEO_CodingVP8:
+    {
+    }
+    break;
+    default:
+    {
         mpp_err_f("unsupport encoder coding type %d\n", type);
-    } break;
+    }
+    break;
     }
 
     mpp_enc_cfg_set_s32(cfg, "split:mode", 0);
     // mpp_enc_cfg_set_s32(cfg, "split:arg", p->split_arg);
     // mpp_enc_cfg_set_s32(cfg, "split:out", p->split_out);
-
 
     // config gop_len and ref cfg
     mpp_enc_cfg_set_s32(cfg, "rc:gop", fps_out_num * 2);
@@ -344,12 +391,15 @@ static MPP_RET mpp_enc_cfg_setup(MppCtx ctx,MppApi *mpi,MppEncCfg cfg)
     mpp_enc_cfg_set_s32(cfg, "tune:vmaf_opt", 0);
 
     /* setup hardware specified parameters */
-    if (rc_mode == MPP_ENC_RC_MODE_SMTRC) {
+    if (rc_mode == MPP_ENC_RC_MODE_SMTRC)
+    {
         mpp_enc_cfg_set_st(cfg, "hw:aq_thrd_i", aq_thd_smart);
         mpp_enc_cfg_set_st(cfg, "hw:aq_thrd_p", aq_thd_smart);
         mpp_enc_cfg_set_st(cfg, "hw:aq_step_i", aq_step_smart);
         mpp_enc_cfg_set_st(cfg, "hw:aq_step_p", aq_step_smart);
-    } else {
+    }
+    else
+    {
         mpp_enc_cfg_set_st(cfg, "hw:aq_thrd_i", aq_thd);
         mpp_enc_cfg_set_st(cfg, "hw:aq_thrd_p", aq_thd);
         mpp_enc_cfg_set_st(cfg, "hw:aq_step_i", aq_step_i_ipc);
@@ -361,9 +411,12 @@ static MPP_RET mpp_enc_cfg_setup(MppCtx ctx,MppApi *mpi,MppEncCfg cfg)
     // mpp_enc_cfg_set_s32(cfg, "hw:qbias_i", cmd->bias_i);
     // mpp_enc_cfg_set_s32(cfg, "hw:qbias_p", cmd->bias_p);
 
-    if (type == MPP_VIDEO_CodingAVC) {
+    if (type == MPP_VIDEO_CodingAVC)
+    {
         mpp_enc_cfg_set_st(cfg, "hw:qbias_arr", qbias_arr_avc);
-    } else if (type == MPP_VIDEO_CodingHEVC) {
+    }
+    else if (type == MPP_VIDEO_CodingHEVC)
+    {
         mpp_enc_cfg_set_st(cfg, "hw:qbias_arr", qbias_arr_hevc);
     }
 
@@ -372,19 +425,21 @@ static MPP_RET mpp_enc_cfg_setup(MppCtx ctx,MppApi *mpi,MppEncCfg cfg)
     mpp_enc_cfg_set_s32(cfg, "hw:skip_sad", 8);
 
     ret = mpi->control(ctx, MPP_ENC_SET_CFG, cfg);
-    if (ret) {
+    if (ret)
+    {
         mpp_err("mpi control enc set cfg failed ret %d\n", ret);
         abort();
     }
 
-    if (type == MPP_VIDEO_CodingAVC || type == MPP_VIDEO_CodingHEVC) {
+    if (type == MPP_VIDEO_CodingAVC || type == MPP_VIDEO_CodingHEVC)
+    {
         RcApiBrief rc_api_brief;
         rc_api_brief.type = type;
-        rc_api_brief.name = (rc_mode == MPP_ENC_RC_MODE_SMTRC) ?
-                            "smart" : "default";
+        rc_api_brief.name = (rc_mode == MPP_ENC_RC_MODE_SMTRC) ? "smart" : "default";
 
         ret = mpi->control(ctx, MPP_ENC_SET_RC_API_CURRENT, &rc_api_brief);
-        if (ret) {
+        if (ret)
+        {
             mpp_err("mpi control enc set rc api failed ret %d\n", ret);
             abort();
         }
@@ -400,16 +455,19 @@ static MPP_RET mpp_enc_cfg_setup(MppCtx ctx,MppApi *mpi,MppEncCfg cfg)
         mpp_env_get_u32("sei_mode", &sei_mode, MPP_ENC_SEI_MODE_DISABLE);
 
         ret = mpi->control(ctx, MPP_ENC_SET_SEI_CFG, &sei_mode);
-        if (ret) {
+        if (ret)
+        {
             mpp_err("mpi control enc set sei cfg failed ret %d\n", ret);
             abort();
         }
     }
 
-    if (type == MPP_VIDEO_CodingAVC || type == MPP_VIDEO_CodingHEVC) {
+    if (type == MPP_VIDEO_CodingAVC || type == MPP_VIDEO_CodingHEVC)
+    {
         int header_mode = MPP_ENC_HEADER_MODE_EACH_IDR;
         ret = mpi->control(ctx, MPP_ENC_SET_HEADER_MODE, &header_mode);
-        if (ret) {
+        if (ret)
+        {
             mpp_err("mpi control enc set header mode failed ret %d\n", ret);
             abort();
         }
@@ -429,13 +487,13 @@ static MPP_RET mpp_enc_cfg_setup(MppCtx ctx,MppApi *mpi,MppEncCfg cfg)
     return ret;
 }
 
-
-encoder::encoder():cam("/dev/video0")
+encoder::encoder() : cam("/dev/video0")
 {
 
     mpp_set_log_level(MPP_LOG_DEBUG);
-    
-    for(int i=0; i< cam.buffer_num; ++i){
+
+    for (int i = 0; i < cam.buffer_num; ++i)
+    {
         MppBufferInfo info;
         memset(&info, 0, sizeof(MppBufferInfo));
         info.type = MPP_BUFFER_TYPE_EXT_DMA;
@@ -452,63 +510,68 @@ encoder::encoder():cam("/dev/video0")
         mpp_err_f("failed to get mpp buffer group ret %d\n", ret);
     }
 
-    ret = mpp_buffer_get(buf_grp, &pkt_buf, get_framesize(MPP_OUT_WIDTH,MPP_OUT_HEIGHT, MPP_FMT));
+    ret = mpp_buffer_get(buf_grp, &pkt_buf, get_framesize(MPP_OUT_WIDTH, MPP_OUT_HEIGHT, MPP_FMT));
     if (ret)
     {
         mpp_err_f("failed to get buffer for output packet ret %d\n", ret);
     }
 
-    ret = mpp_buffer_get(buf_grp, &md_info, get_mdinfo_size(MPP_OUT_WIDTH,MPP_OUT_HEIGHT, MPP_ENCODE_TYPE));
+    ret = mpp_buffer_get(buf_grp, &md_info, get_mdinfo_size(MPP_OUT_WIDTH, MPP_OUT_HEIGHT, MPP_ENCODE_TYPE));
     if (ret)
     {
         mpp_err_f("failed to get buffer for motion info output packet ret %d\n", ret);
     }
 
     ret = mpp_create(&ctx, &mpi);
-    if (ret) {
+    if (ret)
+    {
         mpp_err("mpp_create failed ret %d\n", ret);
     }
 
     MppPollType timeout = MPP_POLL_BLOCK;
 
     ret = mpi->control(ctx, MPP_SET_OUTPUT_TIMEOUT, &timeout);
-    if (MPP_OK != ret) {
+    if (MPP_OK != ret)
+    {
         mpp_err("mpi control set output timeout %d ret %d\n", timeout, ret);
     }
 
     ret = mpp_init(ctx, MPP_CTX_ENC, MPP_VIDEO_CodingHEVC);
-    if (ret) {
+    if (ret)
+    {
         mpp_err("mpp_init failed ret %d\n", ret);
     }
-    
+
     ret = mpp_enc_cfg_init(&cfg);
-    if (ret) {
+    if (ret)
+    {
         mpp_err_f("mpp_enc_cfg_init failed ret %d\n", ret);
     }
 
     ret = mpi->control(ctx, MPP_ENC_GET_CFG, cfg);
-    if (ret) {
+    if (ret)
+    {
         mpp_err_f("get enc cfg failed ret %d\n", ret);
     }
 
-    ret = mpp_enc_cfg_setup(ctx,mpi,cfg);
-    if (ret) {
+    ret = mpp_enc_cfg_setup(ctx, mpi, cfg);
+    if (ret)
+    {
         mpp_err_f("test mpp setup failed ret %d\n", ret);
-
     }
-
 }
 
 volatile sig_atomic_t running_flag = 1;
 
 // 信号处理函数
-void signal_handler(int signal) {
-    printf("recv signal:%d\n",signal);
-    if (signal == SIGINT) {
+void signal_handler(int signal)
+{
+    printf("recv signal:%d\n", signal);
+    if (signal == SIGINT)
+    {
         running_flag = 0;
     }
 }
-
 
 void encoder::run()
 {
@@ -518,30 +581,34 @@ void encoder::run()
     signal(SIGINT, signal_handler);
 
     /*
-        * Can use packet with normal malloc buffer as input not pkt_buf.
-        * Please refer to vpu_api_legacy.cpp for normal buffer case.
-        * Using pkt_buf buffer here is just for simplifing demo.
-        */
+     * Can use packet with normal malloc buffer as input not pkt_buf.
+     * Please refer to vpu_api_legacy.cpp for normal buffer case.
+     * Using pkt_buf buffer here is just for simplifing demo.
+     */
     mpp_packet_init_with_buffer(&packet, pkt_buf);
     /* NOTE: It is important to clear output packet length!! */
     mpp_packet_set_length(packet, 0);
 
     ret = mpi->control(ctx, MPP_ENC_GET_HDR_SYNC, packet);
-    if (ret) {
+    if (ret)
+    {
         mpp_err("mpi control enc get extra info failed\n");
         abort();
-    } else {
+    }
+    else
+    {
         /* get and write sps/pps for H.264 */
 
-        void *ptr   = mpp_packet_get_pos(packet);
-        size_t len  = mpp_packet_get_length(packet);
+        void *ptr = mpp_packet_get_pos(packet);
+        size_t len = mpp_packet_get_length(packet);
 
-        packet_handle_callback((uint8_t *)ptr,len);
+        packet_handle_callback((uint8_t *)ptr, len);
     }
 
     mpp_packet_deinit(&packet);
 
-    while (running_flag) {
+    while (running_flag)
+    {
         MppMeta meta = NULL;
         MppFrame frame = NULL;
         int cam_frm_idx = -1;
@@ -554,7 +621,8 @@ void encoder::run()
         mpp_assert(cam_frm_idx >= 0);
 
         ret = mpp_frame_init(&frame);
-        if (ret) {
+        if (ret)
+        {
             mpp_err_f("mpp_frame_init failed\n");
             abort();
         }
@@ -576,30 +644,34 @@ void encoder::run()
         mpp_meta_set_buffer(meta, KEY_MOTION_INFO, md_info);
 
         ret = mpi->encode_put_frame(ctx, frame);
-        if (ret) {
+        if (ret)
+        {
             mpp_frame_deinit(&frame);
             abort();
         }
 
         mpp_frame_deinit(&frame);
 
-        do {
+        do
+        {
             ret = mpi->encode_get_packet(ctx, &packet);
-            if (ret) {
+            if (ret)
+            {
                 abort();
             }
 
             mpp_assert(packet);
 
-            void *ptr   = mpp_packet_get_pos(packet);
-            size_t len  = mpp_packet_get_length(packet);
+            void *ptr = mpp_packet_get_pos(packet);
+            size_t len = mpp_packet_get_length(packet);
 
             pkt_eos = mpp_packet_get_eos(packet);
 
-            packet_handle_callback((uint8_t *)ptr,len);
+            packet_handle_callback((uint8_t *)ptr, len);
 
             /* for low delay partition encoding */
-            if (mpp_packet_is_partition(packet)) {
+            if (mpp_packet_is_partition(packet))
+            {
                 end_of_frame = mpp_packet_is_eoi(packet);
             }
 
@@ -612,14 +684,13 @@ void encoder::run()
         // auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 
         // printf("%ld   %d\n",duration.count(),cam_frm_idx);
-        
-
     }
 
     printf("exit!\n");
 }
 
-encoder::~encoder(){
+encoder::~encoder()
+{
 
     mpp_destroy(ctx);
 

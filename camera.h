@@ -8,24 +8,24 @@
 #include <linux/videodev2.h>
 #include "stdint.h"
 
-class camera{
-    public:
-        camera(char const *dev_name, int buffer_num = 3);
-        ~camera();
-        int fd;
-        int dma_fds[10];
-        
-        uint64_t frame_length;
+class camera
+{
+public:
+    camera(char const *dev_name, int buffer_num = 3);
+    ~camera();
+    int fd;
+    int dma_fds[10];
 
-        void enqueue_frame(int index = 0);
-        int dequeue_frame();
+    uint64_t frame_length;
 
-        uint8_t *buffers[10];
-        int buffer_num;
-    
-    private:
-        //v4l2_plane plane = {0};
+    void enqueue_frame(int index = 0);
+    int dequeue_frame();
 
+    uint8_t *buffers[10];
+    int buffer_num;
+
+private:
+    // v4l2_plane plane = {0};
 };
 
 #endif

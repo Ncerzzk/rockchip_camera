@@ -18,41 +18,46 @@
 
 #include "stdio.h"
 
-class encoder{
-    public:
-        encoder();
-        ~encoder();
-        camera cam;
-        void run();
+class encoder
+{
+public:
+    encoder();
+    ~encoder();
+    camera cam;
+    void run();
 
-        MppBufferGroup buf_grp;
-        MppBuffer cam_buffers[10];
-        MppBuffer pkt_buf,md_info;
-        MppCtx ctx;
-        MppApi *mpi;
+    MppBufferGroup buf_grp;
+    MppBuffer cam_buffers[10];
+    MppBuffer pkt_buf, md_info;
+    MppCtx ctx;
+    MppApi *mpi;
 
-        bool pkt_eos;
+    bool pkt_eos;
 
-        MppEncCfg cfg;
+    MppEncCfg cfg;
 
-        virtual void packet_handle_callback(uint8_t *ptr, size_t len){};
+    virtual void packet_handle_callback(uint8_t *ptr, size_t len) {};
 };
 
-class encoder_test_fp: public encoder{
-    public:
-        encoder_test_fp():encoder(){
-            fp_output = fopen("test.mp4", "w+b");
-        }
+class encoder_test_fp : public encoder
+{
+public:
+    encoder_test_fp() : encoder()
+    {
+        fp_output = fopen("test.mp4", "w+b");
+    }
 
-        ~encoder_test_fp(){
-            fclose(fp_output);
-        }
+    ~encoder_test_fp()
+    {
+        fclose(fp_output);
+    }
 
-        void packet_handle_callback(uint8_t *ptr,size_t len) override{
-            fwrite(ptr, 1, len, fp_output);
-        }
+    void packet_handle_callback(uint8_t *ptr, size_t len) override
+    {
+        fwrite(ptr, 1, len, fp_output);
+    }
 
-    private:
-        FILE *fp_output;
+private:
+    FILE *fp_output;
 };
 #endif
