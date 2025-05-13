@@ -2,12 +2,8 @@
 #define _ROCKCHIP_CAMERA_ENCODER_H
 
 #include "stdint.h"
-#include "mpp_env.h"
-#include "mpp_mem.h"
-#include "mpp_time.h"
-#include "mpp_debug.h"
-#include "mpp_common.h"
-#include "mpp_soc.h"
+#include "unistd.h"
+#include "stdlib.h"
 
 #include "mpp_rc_api.h"
 

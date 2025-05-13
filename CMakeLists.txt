@@ -36,7 +36,6 @@ endif()
 # 包含路径（等效于 -I 选项）
 target_include_directories(rk_cam PRIVATE
     /usr/local/include/rockchip
-    /home/radxa/mpp/osal/inc
     smolrtsp/include
 )
 

@@ -2,8 +2,17 @@
 #include "stdlib.h"
 #include "memory.h"
 #include "signal.h"
-
+#include "assert.h"
 #include <chrono>
+
+#define MPP_ALIGN(x, a)         (((x)+(a)-1)&~((a)-1))
+#define mpp_err(...)  printf(__VA_ARGS__)
+#define mpp_err_f(...) printf(__VA_ARGS__)
+#define mpp_assert(x) assert(x)
+#define mpp_env_get_u32(a,b,c) *(b) = c
+#define mpp_set_log_level(x)
+
+// #define SOC_TYPE_RK3568
 
 static RK_S32 qbias_arr_hevc[18] = {
     3, 6, 13, 171, 171, 171, 171,
@@ -71,18 +80,14 @@ static RK_S32 aq_step_p_ipc[16] = {
 
 static uint32_t get_mdinfo_size(int width, int height, MppCodingType type)
 {
-    RockchipSocType soc_type = mpp_get_soc_type();
     uint32_t md_size;
     uint32_t w = width, h = height;
 
-    if (soc_type == ROCKCHIP_SOC_RK3588)
-    {
+    #ifdef SOC_TYPE_RK3568
         md_size = (MPP_ALIGN(w, 64) >> 6) * (MPP_ALIGN(h, 64) >> 6) * 32;
-    }
-    else
-    {
+    #else
         md_size = (MPP_VIDEO_CodingHEVC == type) ? (MPP_ALIGN(w, 32) >> 5) * (MPP_ALIGN(h, 32) >> 5) * 16 : (MPP_ALIGN(w, 64) >> 6) * (MPP_ALIGN(h, 16) >> 4) * 16;
-    }
+    #endif
 
     return md_size;
 }
