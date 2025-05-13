@@ -1,0 +1,3 @@
+[submodule "smolrtsp"]
+	path = smolrtsp
+	url = https://github.com/OpenIPC/smolrtsp.git

@@ -1,12 +1,14 @@
 cmake_minimum_required(VERSION 3.0)  # 最低 CMake 版本要求
-project(rk_cam VERSION 1.0)          # 项目名称和版本
+project(rk_cam VERSION 1.0 LANGUAGES C CXX)          # 项目名称和版本
 
-# 0. 基础配置
-# -------------------------------------------------
-set(CMAKE_CXX_STANDARD 11)          # 强制 C++11 标准
-set(CMAKE_CXX_STANDARD_REQUIRED ON)  # 必须使用 C++11
-set(CMAKE_CXX_EXTENSIONS OFF)       # 禁用编译器扩展（如 GNU 扩展）
+set(CMAKE_C_STANDARD 99)
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+include(FetchContent)
+
+add_subdirectory(smolrtsp)
 # 1. 可执行文件定义
 # -------------------------------------------------
 # 源文件列表（自动匹配当前目录下的文件）
@@ -14,7 +16,10 @@ file(GLOB SRCS
     main.cpp
     encoder.cpp
     camera.cpp
+    streamer_encoder.c
 )
+
+# link_directories(smolrtsp/build)
 
 # 生成可执行目标
 add_executable(rk_cam ${SRCS})
@@ -32,6 +37,7 @@ endif()
 target_include_directories(rk_cam PRIVATE
     /usr/local/include/rockchip
     /home/radxa/mpp/osal/inc
+    smolrtsp/include
 )
 
 # 3. 链接配置
@@ -43,4 +49,5 @@ target_link_directories(rk_cam PRIVATE /usr/local/lib)
 target_link_libraries(rk_cam PRIVATE
     pthread
     rockchip_mpp
+    smolrtsp
 )
