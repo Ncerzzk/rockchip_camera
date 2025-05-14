@@ -16,15 +16,18 @@ static streamer_encoder enc;
 
 void streamer_encoder_init(encoder_type t, char *target_ip, int port)
 {
+    int payload_ty = -1;
     if (t == H264)
     {
         enc.expect_nalu_uint_type = SMOLRTSP_H264_NAL_UNIT_AUD;
         enc.enc_type = H264;
+        payload_ty = 96;
     }
     else
     {
         enc.expect_nalu_uint_type = SMOLRTSP_H265_NAL_UNIT_AUD_NUT;
         enc.enc_type = H265;
+        payload_ty = 97;
     }
 
     struct sockaddr_in addr = {
@@ -37,7 +40,7 @@ void streamer_encoder_init(encoder_type t, char *target_ip, int port)
     enc.udp_fd = smolrtsp_dgram_socket(addr.sin_family, smolrtsp_sockaddr_ip((struct sockaddr *)&addr), port);
     enc.transport = SmolRTSP_NalTransport_new(
         SmolRTSP_RtpTransport_new(
-            smolrtsp_transport_udp(enc.udp_fd), 96, 900000));
+            smolrtsp_transport_udp(enc.udp_fd), payload_ty, 900000));
 
     enc.start_code_tester = NULL;
     enc.timestamp = 0;
@@ -83,7 +86,7 @@ void stream_encoder_handle_packet(uint8_t *ptr, size_t len)
         .payload = U8Slice99_new(nalu_start + nalu_header_len, len - nalu_header_len - start_code_len),
     };
 
-    enc.timestamp += 900000 / 25;
+    enc.timestamp += 900000 / 30;
 
     if (SmolRTSP_NalTransport_send_packet(
             enc.transport, SmolRTSP_RtpTimestamp_Raw(enc.timestamp), nalu) ==
