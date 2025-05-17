@@ -5,11 +5,11 @@
 #include "assert.h"
 #include <chrono>
 
-#define MPP_ALIGN(x, a)         (((x)+(a)-1)&~((a)-1))
-#define mpp_err(...)  printf(__VA_ARGS__)
+#define MPP_ALIGN(x, a) (((x) + (a) - 1) & ~((a) - 1))
+#define mpp_err(...) printf(__VA_ARGS__)
 #define mpp_err_f(...) printf(__VA_ARGS__)
 #define mpp_assert(x) assert(x)
-#define mpp_env_get_u32(a,b,c) *(b) = c
+#define mpp_env_get_u32(a, b, c) *(b) = c
 #define mpp_set_log_level(x)
 
 // #define SOC_TYPE_RK3568
@@ -83,11 +83,11 @@ static uint32_t get_mdinfo_size(int width, int height, MppCodingType type)
     uint32_t md_size;
     uint32_t w = width, h = height;
 
-    #ifdef SOC_TYPE_RK3568
-        md_size = (MPP_ALIGN(w, 64) >> 6) * (MPP_ALIGN(h, 64) >> 6) * 32;
-    #else
-        md_size = (MPP_VIDEO_CodingHEVC == type) ? (MPP_ALIGN(w, 32) >> 5) * (MPP_ALIGN(h, 32) >> 5) * 16 : (MPP_ALIGN(w, 64) >> 6) * (MPP_ALIGN(h, 16) >> 4) * 16;
-    #endif
+#ifdef SOC_TYPE_RK3568
+    md_size = (MPP_ALIGN(w, 64) >> 6) * (MPP_ALIGN(h, 64) >> 6) * 32;
+#else
+    md_size = (MPP_VIDEO_CodingHEVC == type) ? (MPP_ALIGN(w, 32) >> 5) * (MPP_ALIGN(h, 32) >> 5) * 16 : (MPP_ALIGN(w, 64) >> 6) * (MPP_ALIGN(h, 16) >> 4) * 16;
+#endif
 
     return md_size;
 }
@@ -607,7 +607,7 @@ void encoder::run()
         void *ptr = mpp_packet_get_pos(packet);
         size_t len = mpp_packet_get_length(packet);
 
-        packet_handle_callback((uint8_t *)ptr, len);
+        hdr_packet_handle_callback((uint8_t *)ptr, len);
     }
 
     mpp_packet_deinit(&packet);

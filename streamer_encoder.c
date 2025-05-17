@@ -46,11 +46,51 @@ void streamer_encoder_init(encoder_type t, char *target_ip, int port)
     enc.timestamp = 0;
 }
 
+static inline U8Slice99 step_to_next_nalu(U8Slice99 video)
+{
+    assert(enc.start_code_tester);
+
+    int start_code_len = enc.start_code_tester(video);
+    int step_len = 0;
+    while (start_code_len == 0)
+    {
+        video = U8Slice99_advance(video, 1);
+        step_len++;
+        assert(step_len < video.len);
+        start_code_len = enc.start_code_tester(video);
+    }
+    return video;
+}
+
+static inline SmolRTSP_NalHeader get_header(uint8_t *ptr)
+{
+    SmolRTSP_NalHeader header;
+    if (enc.enc_type == H264)
+    {
+        header = SmolRTSP_NalHeader_H264(SmolRTSP_H264NalHeader_parse(ptr[0]));
+    }
+    else
+    {
+        header = SmolRTSP_NalHeader_H265(SmolRTSP_H265NalHeader_parse(ptr));
+    }
+    return header;
+}
+
+static inline void send_nalu(SmolRTSP_NalHeader header, U8Slice99 payload)
+{
+    const SmolRTSP_NalUnit nalu = {
+        header, payload};
+
+    if (SmolRTSP_NalTransport_send_packet(
+            enc.transport, SmolRTSP_RtpTimestamp_Raw(enc.timestamp), nalu) ==
+        -1)
+    {
+        perror("Failed to send RTP/NAL");
+    }
+}
+
 void stream_encoder_handle_packet(uint8_t *ptr, size_t len)
 {
-
-    SmolRTSP_NalHeader header;
-
     U8Slice99 video = U8Slice99_new(ptr, len);
 
     if (enc.start_code_tester == NULL)
@@ -70,28 +110,20 @@ void stream_encoder_handle_packet(uint8_t *ptr, size_t len)
     video = U8Slice99_advance(video, start_code_len);
 
     uint8_t *nalu_start = video.ptr;
-    int nalu_header_len = 0;
-    if (enc.enc_type == H264)
-    {
-        header = SmolRTSP_NalHeader_H264(SmolRTSP_H264NalHeader_parse(nalu_start[0]));
-        nalu_header_len = 1;
-    }
-    else
-    {
-        header = SmolRTSP_NalHeader_H265(SmolRTSP_H265NalHeader_parse(nalu_start));
-        nalu_header_len = 2;
-    }
-    const SmolRTSP_NalUnit nalu = {
-        .header = header,
-        .payload = U8Slice99_new(nalu_start + nalu_header_len, len - nalu_header_len - start_code_len),
-    };
+    SmolRTSP_NalHeader header = get_header(nalu_start);
 
+    U8Slice99 payload;
+    while (SmolRTSP_NalHeader_unit_type(header) >= 32 && SmolRTSP_NalHeader_unit_type(header) <= 34)
+    { // VPS SPS PPS
+        video = step_to_next_nalu(video);
+        payload = U8Slice99_from_ptrdiff(nalu_start + SmolRTSP_NalHeader_size(header), video.ptr);
+        send_nalu(header, payload);
+
+        video = U8Slice99_advance(video, start_code_len);
+        nalu_start = video.ptr;
+        header = get_header(nalu_start);
+    }
+    payload = U8Slice99_new(nalu_start + SmolRTSP_NalHeader_size(header), len - (nalu_start - ptr) - SmolRTSP_NalHeader_size(header));
+    send_nalu(header, payload);
     enc.timestamp += 900000 / 30;
-
-    if (SmolRTSP_NalTransport_send_packet(
-            enc.transport, SmolRTSP_RtpTimestamp_Raw(enc.timestamp), nalu) ==
-        -1)
-    {
-        perror("Failed to send RTP/NAL");
-    }
 }

@@ -33,6 +33,7 @@ public:
     MppEncCfg cfg;
 
     virtual void packet_handle_callback(uint8_t *ptr, size_t len) {};
+    virtual void hdr_packet_handle_callback(uint8_t *ptr, size_t len) {};
 };
 
 class encoder_test_to_file : public encoder
@@ -51,6 +52,11 @@ public:
     void packet_handle_callback(uint8_t *ptr, size_t len) override
     {
         fwrite(ptr, 1, len, fp_output);
+    }
+
+    void hdr_packet_handle_callback(uint8_t *ptr, size_t len) override
+    {
+        packet_handle_callback(ptr, len);
     }
 
 private:
