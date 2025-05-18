@@ -1,3 +1,6 @@
 [submodule "smolrtsp"]
 	path = smolrtsp
 	url = https://github.com/OpenIPC/smolrtsp.git
+[submodule "mpp"]
+	path = mpp
+	url = https://github.com/Ncerzzk/mpp.git
